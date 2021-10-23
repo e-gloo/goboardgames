@@ -13,13 +13,14 @@
     "core-js": "^3.6.5",
     "engine.io-client": "^3.4.4",
     "postcss": "^7",
-    "socket.io-client": "2.3.0",
+    "socket.io-client": "2.3.1",
     "tailwindcss": "npm:@tailwindcss/postcss7-compat@^2.0.2",
     "vue": "^3.0.0",
     "vue-class-component": "^8.0.0-0",
     "vue-router": "^4.0.0-0"
   },
   "devDependencies": {
+    "@types/socket.io-client": "^3.0.0",
     "@typescript-eslint/eslint-plugin": "^4.18.0",
     "@typescript-eslint/parser": "^4.18.0",
     "@vue/cli-plugin-babel": "~4.5.0",

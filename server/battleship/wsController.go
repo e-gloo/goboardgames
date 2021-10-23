@@ -2,79 +2,97 @@ package battleship
 
 import (
 	"fmt"
+
+	"github.com/e-gloo/goboardgames/battleship/game"
 	"github.com/e-gloo/goboardgames/server"
+	"github.com/e-gloo/goboardgames/utils"
 	socketio "github.com/googollee/go-socket.io"
-	"github.com/googollee/go-socket.io/engineio"
-	"github.com/googollee/go-socket.io/engineio/transport"
-	"github.com/googollee/go-socket.io/engineio/transport/polling"
-	"github.com/googollee/go-socket.io/engineio/transport/websocket"
-	"github.com/labstack/echo/v4"
-	"net/http"
 )
 
-var allowOriginFunc = func(r *http.Request) bool {
-	return true
+var TempMap = make(map[string]*game.BattleshipGame)
+
+type SocketContext struct {
+	PlayerNb uint8
+	RoomCode string
 }
 
-func Setup() {
-	opts := &engineio.Options{
-		Transports: []transport.Transport{
-			&polling.Transport{
-				CheckOrigin: allowOriginFunc,
-			},
-			&websocket.Transport{
-				CheckOrigin: allowOriginFunc,
-			},
-		},
+func generateCode() string {
+	return utils.RandSeq(10)
+}
+
+func OnConnect(s socketio.Conn) error {
+	// s.SetContext(SocketContext{})
+	fmt.Println("connected /:", s.ID())
+	return nil
+}
+
+func OnConnectB(s socketio.Conn) error {
+	fmt.Println("connected /bat:", s.ID())
+	return nil
+}
+
+func OnDisconnect(s socketio.Conn, reason string) {
+	fmt.Println("closed ", s.ID(), reason)
+}
+
+func Bye(s socketio.Conn) string {
+	last := s.Context().(string)
+	s.Emit("bye", last)
+	s.Close()
+	return last
+}
+
+func PlayWithFriend(s socketio.Conn) {
+	randCode := generateCode()
+	s.Join(randCode)
+	s.SetContext(&SocketContext{PlayerNb: 1, RoomCode: randCode})
+	s.Emit("newCode", randCode)
+	fmt.Printf("Setting player N°1 for room %s\n", randCode)
+	TempMap[randCode] = game.NewBattleshipGame(randCode)
+	TempMap[randCode].Player1Socket = &s
+}
+
+func JoinRoom(s socketio.Conn, code string) string {
+	srv := server.GetSocket()
+	_, ok := s.Context().(*SocketContext)
+	if !ok {
+		fmt.Printf("Setting player N°2 for room %s\n", code)
+		s.SetContext(&SocketContext{PlayerNb: 2, RoomCode: code})
 	}
-	srv := socketio.NewServer(opts)
+	if g, ok := TempMap[code]; ok {
+		s.Join(code)
+		g.Player2Socket = &s
+		g.Phase = game.PREPARATION
+		srv.BroadcastToRoom(Namespace, code, "gamePhaseUpdated", g.Phase)
+	} else {
+		return "joinRoomError"
+	}
+	return "joinRoomOk"
+}
 
-	srv.OnConnect("/", func(s socketio.Conn) error {
-		s.SetContext("")
-		fmt.Println("connected:", s.ID())
-		return nil
-	})
+func OnError(s socketio.Conn, e error) {
+	fmt.Println("meet error:", e)
+}
 
-	srv.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
-		fmt.Println("notice:", msg)
-		// s.Emit("reply", "a marqué: "+msg)
-		srv.BroadcastToNamespace("/", "reply", "a marqué: "+msg)
-	})
+func RandomizeFleet(s socketio.Conn, e error) string {
+	ctx := s.Context().(*SocketContext)
 
-	srv.OnEvent("/chat", "msg", func(s socketio.Conn, msg string) string {
-		s.SetContext(msg)
-		return "recv " + msg
-	})
+	g, ok := TempMap[ctx.RoomCode]
+	if !ok {
+		return "randomizeFleetError"
+	}
 
-	srv.OnEvent("/", "bye", func(s socketio.Conn) string {
-		last := s.Context().(string)
-		s.Emit("bye", last)
-		s.Close()
-		return last
-	})
+	if g.Phase != game.PREPARATION {
+		return "randomizeFleetError"
+	}
 
-	srv.OnError("/", func(s socketio.Conn, e error) {
-		fmt.Println("meet error:", e)
-	})
-
-	srv.OnDisconnect("/", func(s socketio.Conn, reason string) {
-		fmt.Println("closed", reason)
-	})
-
-	srv.OnEvent("/", "token", func(s socketio.Conn, msg string) string {
-		fmt.Println("tokn:", msg)
-		return msg //Sending ack with data in msg back to client, using "return statement"
-	})
-
-	go srv.Serve()
-	// defer srv.Close()
-
-	e := server.GetServer()
-	e.HideBanner = true
-
-	// e.Static("/", "../asset")
-	e.Any("/socket.io/", func(context echo.Context) error {
-		srv.ServeHTTP(context.Response(), context.Request())
-		return nil
-	})
+	fleet := game.NewFleet()
+	fmt.Println(fleet)
+	if ctx.PlayerNb == 1 {
+		g.Player1.Fleet = fleet
+	} else {
+		g.Player2.Fleet = fleet
+	}
+	s.Emit("NewFleet", fleet)
+	return "randomizeFleetOk"
 }

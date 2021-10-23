@@ -1,11 +1,11 @@
 <template lang="">
   <div>
     <ConnectionState :socket="socket"/>
-    <div ref="chat">
-      <div :key="i" v-for="(msg, i) in messages">{{ msg }}</div>
-    </div>
-    <input class="border" v-model="text"/>
-    <button @click="send">Send</button>
+    <template v-if="generatedCode">
+      <div class="text-lg text-white">Code: {{ generatedCode }}</div>
+      <div>Share: <a :href="shareUrl" target="_blank">{{ shareUrl }}</a></div>
+    </template>
+    <button class="px-6 py-2 rounded-md bg-green-300 text-gray-800" @click="playWithFriend">Jouer avec un ami</button>
   </div>
 </template>
 
@@ -22,30 +22,52 @@ import ConnectionState from '@/components/ConnectionState.vue';
 })
 export default class BattleshipPage extends Vue {
   socket?: Socket = undefined;
-  messages: string[] = [];
-  text = '';
+  generatedCode = '';
 
   created() {
-    this.socket = io(`${SOCKET_URL}`);
+    this.generatedCode = this.$route.query?.code as string;
+    this.socket = io(`${SOCKET_URL}/battleship`, {
+      reconnection: false
+    });
     this.socket.connect();
 
     this.socket.on("connect", () => {
-      // ...
+      console.log("connected");
+      if (this.generatedCode) {
+        this.socket.emit('joinRoom', this.generatedCode)
+      }
     });
     this.socket.on("disconnect", () => {
-      // ...
+      console.log("disconnected");
     });
-    this.socket.on("ping", () => {
-      console.log('ping');
-    });
-    this.socket.on("reply", (msg) => {
-      this.messages.push(msg);
-    });
+
+    this.socket.on("newCode", (data: string) => {
+      this.generatedCode = data
+    })
+    this.socket.on("gamePhaseUpdated", (data: number) => {
+      if (data === 1) {
+        this.socket.emit('randomizeFleet')
+      }
+    })
+    this.socket.on("NewFleet", (data: any) => {
+      const ships = data.map(s => {
+        const cells = Array.from(atob(s.Cells)).map(v => v.charCodeAt(0))
+        return cells;
+      })
+      console.log("NewFleet", ships);
+    })
+  }
+	
+  unmounted() {
+    this.socket?.disconnect();
   }
 
-  send() {
-    this.socket?.emit('notice', this.text)
-    this.text = '';
+  playWithFriend() {
+    this.socket?.emit('playWithFriend');
+  }
+
+  get shareUrl() {
+    return `${document.location.origin}${document.location.pathname}?code=${this.generatedCode}`
   }
 }
 </script>
