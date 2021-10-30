@@ -43,7 +43,8 @@ func Bye(s socketio.Conn) string {
 }
 
 func PlayWithFriend(s socketio.Conn) {
-	randCode := generateCode()
+	randCode := "test"
+	// randCode := generateCode()
 	s.Join(randCode)
 	s.SetContext(&SocketContext{PlayerNb: 1, RoomCode: randCode})
 	s.Emit("newCode", randCode)
@@ -76,6 +77,8 @@ func OnError(s socketio.Conn, e error) {
 
 func RandomizeFleet(s socketio.Conn, e error) string {
 	ctx := s.Context().(*SocketContext)
+
+	fmt.Println("Got new fleet request")
 
 	g, ok := TempMap[ctx.RoomCode]
 	if !ok {

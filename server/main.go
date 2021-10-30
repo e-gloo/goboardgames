@@ -13,7 +13,7 @@ func main() {
 	utils.InitRandom()
 	e := server.GetServer()
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://172.23.164.159:8080"},
+		AllowOrigins:     []string{"http://172.23.164.159:8080", "http://172.23.100.254:8080"},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
 	}))

@@ -1,75 +1,103 @@
-<template lang="">
+<template>
   <div>
-    <ConnectionState :socket="socket"/>
-    <template v-if="generatedCode">
-      <div class="text-lg text-white">Code: {{ generatedCode }}</div>
-      <div>Share: <a :href="shareUrl" target="_blank">{{ shareUrl }}</a></div>
-    </template>
-    <button class="px-6 py-2 rounded-md bg-green-300 text-gray-800" @click="playWithFriend">Jouer avec un ami</button>
+    <ConnectionState :socket="socket" />
+    <component
+      :is="componentPhase"
+      :socket="socket"
+      :code="generatedCode"
+      :api="api"
+    ></component>
+    <button
+      v-if="componentPhase === null"
+      class="px-6 py-2 rounded-md bg-green-300 text-gray-800"
+      @click="playWithFriend"
+    >
+      Jouer avec un ami
+    </button>
   </div>
 </template>
 
 <script lang="ts">
-import { Vue, Options } from "vue-class-component";
-import io, { Socket } from "socket.io-client";
+import { ref, onUnmounted, watch } from 'vue';
+import io from 'socket.io-client';
 import { SOCKET_URL } from '@/constants';
 import ConnectionState from '@/components/ConnectionState.vue';
+import { useRoute } from 'vue-router';
+import Api from '@/battleship/Api';
+import { GamePhase } from '@/battleship/enums/GamePhase';
+import WaitingPhaseVue from '@/components/battleship/WaitingPhase.vue';
+import PreparationPhaseVue from '@/components/battleship/PreparationPhase.vue';
 
-@Options({
+export default {
   components: {
-    ConnectionState
-  }
-})
-export default class BattleshipPage extends Vue {
-  socket?: Socket = undefined;
-  generatedCode = '';
-
-  created() {
-    this.generatedCode = this.$route.query?.code as string;
-    this.socket = io(`${SOCKET_URL}/battleship`, {
-      reconnection: false
+    ConnectionState,
+    WaitingPhaseVue,
+    PreparationPhaseVue,
+  },
+  setup() {
+    const route = useRoute();
+    const phase = ref<GamePhase>(null);
+    const componentPhase = ref(null);
+    const socket = io(`${SOCKET_URL}/battleship`, {
+      reconnection: false,
     });
-    this.socket.connect();
+    const api = new Api(socket);
 
-    this.socket.on("connect", () => {
-      console.log("connected");
-      if (this.generatedCode) {
-        this.socket.emit('joinRoom', this.generatedCode)
+    const generatedCode = ref((route.query?.code as string) || '');
+    socket.connect();
+
+    socket.on('connect', () => {
+      console.log('connected');
+      if (generatedCode.value) {
+        socket.emit('joinRoom', generatedCode.value);
       }
     });
-    this.socket.on("disconnect", () => {
-      console.log("disconnected");
+    socket.on('disconnect', () => {
+      console.log('disconnected');
     });
 
-    this.socket.on("newCode", (data: string) => {
-      this.generatedCode = data
-    })
-    this.socket.on("gamePhaseUpdated", (data: number) => {
-      if (data === 1) {
-        this.socket.emit('randomizeFleet')
+    socket.on('newCode', (data: string) => {
+      generatedCode.value = data;
+    });
+    socket.on('gamePhaseUpdated', async (data: number) => {
+      phase.value = data;
+    });
+
+    function playWithFriend() {
+      phase.value = GamePhase.WAITING;
+      socket?.emit('playWithFriend');
+    }
+
+    onUnmounted(() => {
+      socket?.disconnect();
+    });
+
+    watch(phase, async (gamePhase) => {
+      console.log('Gamephase: ', gamePhase);
+      console.log('Preparation: ', GamePhase.PREPARATION);
+
+      switch (gamePhase) {
+        case GamePhase.WAITING:
+          componentPhase.value = 'WaitingPhaseVue';
+          break;
+        case GamePhase.PREPARATION:
+          componentPhase.value = 'PreparationPhaseVue';
+          break;
+        default:
+          break;
       }
-    })
-    this.socket.on("NewFleet", (data: any) => {
-      const ships = data.map(s => {
-        const cells = Array.from(atob(s.Cells)).map(v => v.charCodeAt(0))
-        return cells;
-      })
-      console.log("NewFleet", ships);
-    })
-  }
-	
-  unmounted() {
-    this.socket?.disconnect();
-  }
+    });
 
-  playWithFriend() {
-    this.socket?.emit('playWithFriend');
-  }
-
-  get shareUrl() {
-    return `${document.location.origin}${document.location.pathname}?code=${this.generatedCode}`
-  }
-}
+    return {
+      socket,
+      phase,
+      generatedCode,
+      playWithFriend,
+      componentPhase,
+      api,
+    };
+  },
+};
 </script>
 
 <style lang=""></style>
