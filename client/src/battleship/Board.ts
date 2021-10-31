@@ -1,6 +1,10 @@
-import { Fleet } from "./types/Fleet";
+import { Fleet } from './types/Fleet';
 
 export class Board {
   fleet: Fleet;
-  grid: number[];
+  hits: number[];
+
+  constructor() {
+    this.hits = [];
+  }
 }

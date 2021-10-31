@@ -10,15 +10,15 @@
 </template>
 
 <script lang="ts">
-import { MAP_HEIGHT, MAP_WIDTH } from '@/constants';
+import { useBattleship } from "../hooks/useBattleship";
+import { MAP_HEIGHT, MAP_WIDTH } from "./constants";
 
 export default {
-  props: {
-    fleet: Array
-  },
-  setup(props) {
+  setup() {
+    const { board } = useBattleship();
+
     const isBoatHere = (pos: number) => {
-      return props.fleet.filter(f => f.Cells.includes(pos)).length
+      return board.value.fleet?.filter(f => f.Cells.includes(pos)).length
     }
     return {
       isBoatHere,
