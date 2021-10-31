@@ -1,5 +1,5 @@
 <template>
-    <div id="board">
+    <div>
         <div v-for="(_, h) in height" :key="h" class="flex justify-center">
             <div v-for="(_, w) in width" :key="h * width + w" class="border border-white">
               <div v-if="isBoatHere(h * width + w)" class="w-10 h-10 bg-red-300"></div>
@@ -11,19 +11,15 @@
 
 <script lang="ts">
 import { useBattleship } from "../hooks/useBattleship";
-import { MAP_HEIGHT, MAP_WIDTH } from "./constants";
 
 export default {
   setup() {
-    const { board } = useBattleship();
+    const { board, mapWidth, mapHeight } = useBattleship();
 
-    const isBoatHere = (pos: number) => {
-      return board.value.fleet?.filter(f => f.Cells.includes(pos)).length
-    }
     return {
-      isBoatHere,
-      height: MAP_HEIGHT,
-      width: MAP_WIDTH
+      height: mapHeight,
+      width: mapWidth,
+      isBoatHere: (pos: number) => board.value.isBoatHere(pos),
     };
   },
 };

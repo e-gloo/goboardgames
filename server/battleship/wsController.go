@@ -2,6 +2,7 @@ package battleship
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/e-gloo/goboardgames/battleship/game"
 	"github.com/e-gloo/goboardgames/server"
@@ -28,6 +29,7 @@ func OnConnect(s socketio.Conn) error {
 
 func OnConnectB(s socketio.Conn) error {
 	fmt.Println("connected /bat:", s.ID())
+	s.Emit("gameOptions", game.GameConstants)
 	return nil
 }
 
@@ -47,6 +49,7 @@ func PlayWithFriend(s socketio.Conn) {
 	// randCode := generateCode()
 	s.Join(randCode)
 	s.SetContext(&SocketContext{PlayerNb: 1, RoomCode: randCode})
+	s.Emit("PlayerNB", 1)
 	s.Emit("newCode", randCode)
 	fmt.Printf("Setting player N°1 for room %s\n", randCode)
 	TempMap[randCode] = game.NewBattleshipGame(randCode)
@@ -59,6 +62,7 @@ func JoinRoom(s socketio.Conn, code string) string {
 	if !ok {
 		fmt.Printf("Setting player N°2 for room %s\n", code)
 		s.SetContext(&SocketContext{PlayerNb: 2, RoomCode: code})
+		s.Emit("PlayerNB", 2)
 	}
 	if g, ok := TempMap[code]; ok {
 		s.Join(code)
@@ -98,4 +102,34 @@ func RandomizeFleet(s socketio.Conn, e error) string {
 	}
 	s.Emit("NewFleet", fleet)
 	return "randomizeFleetOk"
+}
+
+func Ready(s socketio.Conn, e error) string {
+	ctx := s.Context().(*SocketContext)
+	g, ok := TempMap[ctx.RoomCode]
+	if !ok {
+		return "ko"
+	}
+
+	other := 0
+	if ctx.PlayerNb == 1 {
+		g.Player1.Ready = true
+		other = 2
+	} else {
+		g.Player2.Ready = true
+		other = 1
+	}
+	v := reflect.ValueOf(g).Elem()
+	playerName := fmt.Sprintf("Player%d", other)
+	player, _ := v.FieldByName(playerName).Interface().(*game.PlayerFleet)
+	srv := server.GetSocket()
+	if player.Ready {
+		whosTurn := utils.RandInt(1, 2)
+		g.Phase = game.PLAYING
+		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "gamePhaseUpdated", g.Phase)
+		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayersTurn", whosTurn)
+	}
+	srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayerReady", ctx.PlayerNb)
+
+	return "ok"
 }

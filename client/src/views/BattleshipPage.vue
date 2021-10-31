@@ -19,6 +19,7 @@ import { useRoute } from 'vue-router';
 import { GamePhase } from '@/battleship/enums/GamePhase';
 import WaitingPhaseVue from '@/battleship/components/WaitingPhase.vue';
 import PreparationPhaseVue from '@/battleship/components/PreparationPhase.vue';
+import PlayingPhaseVue from '@/battleship/components/PlayingPhase.vue';
 import { BATTLESHIP_KEY } from '@/battleship/components/constants';
 import { Game } from '@/battleship/Game';
 
@@ -27,6 +28,7 @@ export default {
     ConnectionState,
     WaitingPhaseVue,
     PreparationPhaseVue,
+    PlayingPhaseVue,
   },
   setup() {
     const game = new Game();
@@ -52,6 +54,9 @@ export default {
           break;
         case GamePhase.PREPARATION:
           componentPhase.value = 'PreparationPhaseVue';
+          break;
+        case GamePhase.PLAYING:
+          componentPhase.value = 'PlayingPhaseVue';
           break;
         default:
           break;

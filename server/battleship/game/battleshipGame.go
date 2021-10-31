@@ -20,8 +20,8 @@ func NewBattleshipGame(roomCode string) *BattleshipGame {
 		RoomCode:      roomCode,
 		Player1Socket: nil,
 		Player2Socket: nil,
-		Player1:       &PlayerFleet{Fleet: nil, Hits: nil},
-		Player2:       &PlayerFleet{Fleet: nil, Hits: nil},
+		Player1:       &PlayerFleet{Fleet: nil, Hits: nil, Ready: false},
+		Player2:       &PlayerFleet{Fleet: nil, Hits: nil, Ready: false},
 		Turn:          uint8(utils.RandInt(0, 1)),
 		Phase:         WAITING,
 	}
