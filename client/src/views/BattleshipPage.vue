@@ -23,6 +23,12 @@ import PlayingPhaseVue from '@/battleship/components/PlayingPhase.vue';
 import { BATTLESHIP_KEY } from '@/battleship/components/constants';
 import { Game } from '@/battleship/Game';
 
+const componentPhases = {
+  [GamePhase.WAITING]: 'WaitingPhaseVue',
+  [GamePhase.PREPARATION]: 'PreparationPhaseVue',
+  [GamePhase.PLAYING]: 'PlayingPhaseVue',
+}
+
 export default {
   components: {
     ConnectionState,
@@ -32,34 +38,20 @@ export default {
   },
   setup() {
     const game = new Game();
-    const {phase, generatedCode, socket } = game;
+    const { phase, generatedCode, socket } = game;
     provide(BATTLESHIP_KEY, game);
     const route = useRoute();
     const componentPhase = ref(null);
 
-    onMounted(() => {
-      generatedCode.value = route.query?.code as string || '';
-    });
+    onMounted(() => game.joinRoom(route.query?.code as string || ''));
+    onUnmounted(() => game.disconnect())
 
-    onUnmounted(() => {
-      game.disconnect()
-    })
-
-    watch(phase, async (gamePhase) => {
-      console.log('PHASE:', GamePhase[gamePhase]);
-
-      switch (gamePhase) {
-        case GamePhase.WAITING:
-          componentPhase.value = 'WaitingPhaseVue';
-          break;
-        case GamePhase.PREPARATION:
-          componentPhase.value = 'PreparationPhaseVue';
-          break;
-        case GamePhase.PLAYING:
-          componentPhase.value = 'PlayingPhaseVue';
-          break;
-        default:
-          break;
+    watch(phase, (gamePhase) => {
+      if (componentPhases[gamePhase]) {
+        console.log('Phase:', GamePhase[gamePhase]);
+        componentPhase.value = componentPhases[gamePhase];
+      } else {
+        console.error(`Unknown phase: ${GamePhase[gamePhase]} (${gamePhase})`)
       }
     });
 

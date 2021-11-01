@@ -1,7 +1,6 @@
 import { Fleet } from '@/battleship/types/Fleet';
 import createWrapper from 'event-wrapper';
 import { Socket } from 'socket.io-client';
-import { Ref } from 'vue';
 
 export function randomizeFleet(socket: Socket) {
   return new Promise<Fleet>((resolve, reject) => {
@@ -25,7 +24,18 @@ export function ready(socket: Socket, cb: (playerNb) => void) {
   return new Promise<number>((resolve) => {
     const wrap = createWrapper(socket, resolve);
 
-    wrap('PlayerReady', (playerNb) => cb(playerNb))
-    wrap('PlayersTurn', wrap.done)
+    wrap('PlayerReady', (playerNb) => cb(playerNb));
+    wrap('PlayersTurn', wrap.done);
+  });
+}
+
+export function joinRoom(socket: Socket, code: string) {
+  return new Promise<boolean>((resolve) => {
+    const wrap = createWrapper(socket, resolve);
+
+    wrap('joinRoomError', () => wrap.done(false));
+    wrap('joinRoomOk', () => wrap.done(true));
+
+    socket.emit('joinRoom', code);
   });
 }

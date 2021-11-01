@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve-switool": "vue-cli-service serve --host 172.23.100.254",
-    "serve": "vue-cli-service serve --host 172.23.164.159",
+    "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint"
   },

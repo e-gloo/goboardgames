@@ -49,7 +49,7 @@ func PlayWithFriend(s socketio.Conn) {
 	// randCode := generateCode()
 	s.Join(randCode)
 	s.SetContext(&SocketContext{PlayerNb: 1, RoomCode: randCode})
-	s.Emit("PlayerNB", 1)
+	s.Emit("PlayerNb", 1)
 	s.Emit("newCode", randCode)
 	fmt.Printf("Setting player N°1 for room %s\n", randCode)
 	TempMap[randCode] = game.NewBattleshipGame(randCode)
@@ -62,7 +62,7 @@ func JoinRoom(s socketio.Conn, code string) string {
 	if !ok {
 		fmt.Printf("Setting player N°2 for room %s\n", code)
 		s.SetContext(&SocketContext{PlayerNb: 2, RoomCode: code})
-		s.Emit("PlayerNB", 2)
+		s.Emit("PlayerNb", 2)
 	}
 	if g, ok := TempMap[code]; ok {
 		s.Join(code)
