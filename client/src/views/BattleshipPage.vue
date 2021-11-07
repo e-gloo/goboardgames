@@ -37,13 +37,12 @@ export default {
     PlayingPhaseVue,
   },
   setup() {
-    const game = new Game();
+    const route = useRoute();
+    const game = new Game(route.query?.code as string);
     const { phase, generatedCode, socket } = game;
     provide(BATTLESHIP_KEY, game);
-    const route = useRoute();
     const componentPhase = ref(null);
 
-    onMounted(() => game.joinRoom(route.query?.code as string || ''));
     onUnmounted(() => game.disconnect())
 
     watch(phase, (gamePhase) => {

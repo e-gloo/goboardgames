@@ -1,8 +1,8 @@
 import { SOCKET_URL } from '@/constants';
 import io, { Socket } from 'socket.io-client';
-import { ref } from 'vue';
+import { ref, Ref } from 'vue';
 import { joinRoom, randomizeFleet } from './Api';
-import { Board } from './Board';
+import { MyBoard } from './MyBoard';
 import { EnemyBoard } from './EnemyBoard';
 import { GamePhase } from './enums/GamePhase';
 
@@ -12,12 +12,14 @@ export class Game {
   phase = ref<GamePhase>(null);
   yourTurn = ref<boolean>(false);
   generatedCode = ref<string>(null);
-  board = ref<Board>(null);
-  enemyBoard = ref<EnemyBoard>(null);
+  board = ref<MyBoard>(null);
+  enemyBoards: Record<number, Ref<EnemyBoard>> = {};
   mapWidth = null;
   mapHeight = null;
+  nbPlayers = 2;
 
-  constructor() {
+  constructor(code?: string) {
+    this.generatedCode.value = code;
     this.socket = io(`${SOCKET_URL}/battleship`, {
       reconnection: false,
     });
@@ -26,6 +28,9 @@ export class Game {
 
     this.socket.on('connect', () => {
       console.log('connected');
+      if (this.generatedCode.value?.length) {
+        this.joinRoom(this.generatedCode.value)
+      }
     });
     this.socket.on('disconnect', () => {
       console.log('disconnected');
@@ -48,6 +53,9 @@ export class Game {
     this.socket.on('PlayerNb', (data: number) => {
       this.playerNb = data;
     });
+    this.socket.on('PlayersTurn', (playerNb: number) => {
+      this.yourTurn.value = this.playerNb === playerNb;
+    })
   }
 
   disconnect() {
@@ -73,8 +81,24 @@ export class Game {
   }
 
   createBoard() {
-    this.board.value = new Board(this.mapWidth, this.mapHeight);
-    this.enemyBoard.value = new EnemyBoard(this.mapWidth, this.mapHeight);
+    this.board.value = new MyBoard(this.mapWidth, this.mapHeight);
+    // Styve
+    // Array(this.nbPlayers).fill(0).forEach(k => {
+    //   if (k + 1 !== this.playerNb) {
+    //       this.enemyBoards[k + 1] = ref(new EnemyBoard(this.mapWidth, this.mapHeight));
+    //   }
+    // });
+
+    // VS Dylan
+    for (let i = 1; i <= this.nbPlayers; ++i) {
+      if (i != this.playerNb) {
+        this.enemyBoards[i] = ref(new EnemyBoard(this.mapWidth, this.mapHeight));
+      }
+    }
+
+    console.log(this.enemyBoards);
+
+    // FIGHT!
   }
 
   async getBoardFleet() {
@@ -84,5 +108,10 @@ export class Game {
 
   ready() {
     this.socket.emit('ready');
+  }
+
+  attack(pos: number) {
+    console.log(`attacking in ${pos}`)
+    this.socket.emit('attack', pos, this.playerNb == 1 ? 2 : 1);
   }
 }

@@ -2,7 +2,6 @@ package battleship
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/e-gloo/goboardgames/battleship/game"
 	"github.com/e-gloo/goboardgames/server"
@@ -37,36 +36,29 @@ func OnDisconnect(s socketio.Conn, reason string) {
 	fmt.Println("closed ", s.ID(), reason)
 }
 
-func Bye(s socketio.Conn) string {
-	last := s.Context().(string)
-	s.Emit("bye", last)
-	s.Close()
-	return last
-}
-
 func PlayWithFriend(s socketio.Conn) {
 	randCode := "test"
 	// randCode := generateCode()
 	s.Join(randCode)
-	s.SetContext(&SocketContext{PlayerNb: 1, RoomCode: randCode})
-	s.Emit("PlayerNb", 1)
 	s.Emit("newCode", randCode)
-	fmt.Printf("Setting player N°1 for room %s\n", randCode)
-	TempMap[randCode] = game.NewBattleshipGame(randCode)
-	TempMap[randCode].Player1Socket = &s
+	g := game.NewBattleshipGame(randCode)
+	TempMap[randCode] = g
+	player := g.AddPlayer(&s)
+	s.SetContext(&SocketContext{PlayerNb: player.Number, RoomCode: randCode})
+	s.Emit("PlayerNb", player.Number)
 }
 
 func JoinRoom(s socketio.Conn, code string) string {
 	srv := server.GetSocket()
-	_, ok := s.Context().(*SocketContext)
-	if !ok {
-		fmt.Printf("Setting player N°2 for room %s\n", code)
-		s.SetContext(&SocketContext{PlayerNb: 2, RoomCode: code})
-		s.Emit("PlayerNb", 2)
-	}
-	if g, ok := TempMap[code]; ok {
+	g, ok := TempMap[code]
+	if ok {
+		_, ok := s.Context().(*SocketContext)
+		if !ok {
+			player := g.AddPlayer(&s)
+			s.SetContext(&SocketContext{PlayerNb: player.Number, RoomCode: code})
+			s.Emit("PlayerNb", player.Number)
+		}
 		s.Join(code)
-		g.Player2Socket = &s
 		g.Phase = game.PREPARATION
 		srv.BroadcastToRoom(Namespace, code, "gamePhaseUpdated", g.Phase)
 	} else {
@@ -79,7 +71,7 @@ func OnError(s socketio.Conn, e error) {
 	fmt.Println("meet error:", e)
 }
 
-func RandomizeFleet(s socketio.Conn, e error) string {
+func RandomizeFleet(s socketio.Conn) string {
 	ctx := s.Context().(*SocketContext)
 
 	fmt.Println("Got new fleet request")
@@ -95,41 +87,69 @@ func RandomizeFleet(s socketio.Conn, e error) string {
 
 	fleet := game.NewFleet()
 	fmt.Println(fleet)
-	if ctx.PlayerNb == 1 {
-		g.Player1.Fleet = fleet
-	} else {
-		g.Player2.Fleet = fleet
-	}
+	player := g.GetPlayer(ctx.PlayerNb)
+	player.Fleet.Fleet = fleet
 	s.Emit("NewFleet", fleet)
 	return "randomizeFleetOk"
 }
 
-func Ready(s socketio.Conn, e error) string {
+func Ready(s socketio.Conn) string {
 	ctx := s.Context().(*SocketContext)
 	g, ok := TempMap[ctx.RoomCode]
 	if !ok {
 		return "ko"
 	}
 
-	other := 0
-	if ctx.PlayerNb == 1 {
-		g.Player1.Ready = true
-		other = 2
-	} else {
-		g.Player2.Ready = true
-		other = 1
-	}
-	v := reflect.ValueOf(g).Elem()
-	playerName := fmt.Sprintf("Player%d", other)
-	player, _ := v.FieldByName(playerName).Interface().(*game.PlayerFleet)
 	srv := server.GetSocket()
-	if player.Ready {
-		whosTurn := utils.RandInt(1, 2)
+	// otherPlayers := g.GetOtherPlayers(ctx.PlayerNb)
+	player := g.GetPlayer(ctx.PlayerNb)
+	player.Ready = true
+
+	// check si tout le monde est prêt
+	if g.CheckAllPlayersReady() {
+		whosTurn := uint8(utils.RandInt(1, len(g.Players)+1))
 		g.Phase = game.PLAYING
+		g.Turn = whosTurn
 		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "gamePhaseUpdated", g.Phase)
 		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayersTurn", whosTurn)
 	}
+
 	srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayerReady", ctx.PlayerNb)
 
 	return "ok"
+}
+
+func Attack(s socketio.Conn, cell uint8, playerNb uint8) string {
+	srv := server.GetSocket()
+	ctx := s.Context().(*SocketContext)
+	g, ok := TempMap[ctx.RoomCode]
+	if !ok || ctx.PlayerNb != g.Turn {
+		return "attackError"
+	}
+
+	player := g.GetPlayer(playerNb)
+	if player == nil || player.Fleet.IsAlreadyHit(cell) {
+		return "attackError"
+	}
+
+	ship := player.Fleet.Attack(cell)
+	var result AttackResultEnum = MISS
+	if ship == nil {
+		result = MISS
+	} else if ship.RemainingAlive > 0 {
+		fmt.Println(ship.RemainingAlive)
+		result = HIT
+	} else {
+		fmt.Println(ship.RemainingAlive)
+		result = SUNK
+	}
+
+	srv.BroadcastToRoom(Namespace, ctx.RoomCode, "AttackResult", &AttackResult{Position: cell, Result: result, PlayerNb: playerNb})
+
+	if result != HIT {
+		g.NextTurn(ctx.PlayerNb)
+		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayersTurn", g.Turn)
+	}
+
+	return "attackOk"
 }

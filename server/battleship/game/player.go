@@ -1,7 +1,12 @@
 package game
 
-type PlayerFleet struct {
-	Ready bool
-	Fleet *[]Ship
-	Hits  []uint8
+import (
+	socketio "github.com/googollee/go-socket.io"
+)
+
+type Player struct {
+	Ready  bool
+	Number uint8
+	Socket *socketio.Conn
+	Fleet  *PlayerFleet
 }

@@ -20,6 +20,17 @@ export function randomizeFleet(socket: Socket) {
   });
 }
 
+export function joinRoom(socket: Socket, code: string) {
+  return new Promise<boolean>((resolve) => {
+    const wrap = createWrapper(socket, resolve);
+
+    wrap('joinRoomError', () => wrap.done(false));
+    wrap('joinRoomOk', () => wrap.done(true));
+
+    socket.emit('joinRoom', code);
+  });
+}
+
 export function ready(socket: Socket, cb: (playerNb) => void) {
   return new Promise<number>((resolve) => {
     const wrap = createWrapper(socket, resolve);
@@ -29,13 +40,20 @@ export function ready(socket: Socket, cb: (playerNb) => void) {
   });
 }
 
-export function joinRoom(socket: Socket, code: string) {
+
+export function attackResult(socket: Socket, handleResult: (AttackResult) => void): any {
+  const wrap = createWrapper(socket);
+  wrap('AttackResult', handleResult)
+  return wrap;
+}
+
+export function gameOver(socket: Socket, attackWrap: any): any {
   return new Promise<boolean>((resolve) => {
     const wrap = createWrapper(socket, resolve);
 
-    wrap('joinRoomError', () => wrap.done(false));
-    wrap('joinRoomOk', () => wrap.done(true));
-
-    socket.emit('joinRoom', code);
+    wrap('GameOver', () => {
+      attackWrap.done();
+      wrap.done();
+    });
   });
 }

@@ -1,18 +1,18 @@
-import { Fleet } from './types/Fleet';
+import { AttackResultEnum } from "./enums/AttackResultEnum";
 
 export class Board {
-  fleet: Fleet;
-  hits: number[];
-  w: number;
-  h: number;
+    hits: Record<number, AttackResultEnum> = {};
+    w: number;
+    h: number;
 
-  constructor(w: number, h: number) {
-    this.hits = [];
-    this.w = w;
-    this.h = h;
-  }
+    constructor(w: number, h: number) {
+      this.hits = {};
+      this.w = w;
+      this.h = h;
+    }
 
-  isBoatHere(pos: number) {
-    return this.fleet?.filter(f => f.Cells.includes(pos)).length
-  }
+    canAttack(pos: number) {
+        return !this.hits[pos]
+      }
+
 }

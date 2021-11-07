@@ -1,18 +1,7 @@
-import { Fleet } from './types/Fleet';
-import { AttackResult } from './enums/AttackResult'
+import { Board } from './Board';
 
-export class EnemyBoard {
-  hits: Record<number, AttackResult> = {};
-  w: number;
-  h: number;
-
+export class EnemyBoard extends Board {
   constructor(w: number, h: number) {
-    this.hits = {};
-    this.w = w;
-    this.h = h;
-  }
-
-  canAttack(pos: number) {
-    return !this.hits[pos]
+    super(w, h);
   }
 }

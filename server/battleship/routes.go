@@ -21,7 +21,7 @@ func AddWSRoutes() {
 	srv.OnEvent(Namespace, "joinRoom", JoinRoom)
 	srv.OnEvent(Namespace, "randomizeFleet", RandomizeFleet)
 	srv.OnEvent(Namespace, "ready", Ready)
-	srv.OnEvent(Namespace, "bye", Bye)
+	srv.OnEvent(Namespace, "attack", Attack)
 	srv.OnError(Namespace, OnError)
 	srv.OnDisconnect(Namespace, OnDisconnect)
 }
