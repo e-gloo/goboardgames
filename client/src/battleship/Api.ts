@@ -1,6 +1,7 @@
 import { Fleet } from '@/battleship/types/Fleet';
 import createWrapper from 'event-wrapper';
 import { Socket } from 'socket.io-client';
+import { AttackResult } from './types/AttackResult';
 
 export function randomizeFleet(socket: Socket) {
   return new Promise<Fleet>((resolve, reject) => {
@@ -41,9 +42,16 @@ export function ready(socket: Socket, cb: (playerNb) => void) {
 }
 
 
-export function attackResult(socket: Socket, handleResult: (AttackResult) => void): any {
-  const wrap = createWrapper(socket);
+export function attackResult(
+    socket: Socket,
+    handleResult: (attackResult: AttackResult) => void,
+    handleSunk: (cells: string, playerNb: number) => void
+  ): any {
+  const wrap = createWrapper(socket, () => {
+    console.trace('ATTACK RESULT DONE!!!!!!!')
+  });
   wrap('AttackResult', handleResult)
+  wrap('BoatSunk', handleSunk)
   return wrap;
 }
 
@@ -52,6 +60,7 @@ export function gameOver(socket: Socket, attackWrap: any): any {
     const wrap = createWrapper(socket, resolve);
 
     wrap('GameOver', () => {
+      console.log("GAME OVER")
       attackWrap.done();
       wrap.done();
     });

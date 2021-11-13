@@ -15,6 +15,7 @@ import { onMounted, Ref } from '@vue/runtime-core';
 import { attackResult, gameOver } from '../Api';
 import { AttackResult } from '../types/AttackResult';
 import { Board } from '../Board';
+import { AttackResultEnum } from '../enums/AttackResultEnum';
 
 export default {
   components: {
@@ -38,8 +39,26 @@ export default {
       return;
     }
 
+    function handleSunk(cells: string, playerNb: number) {
+      try {
+        let cellsNb = Array.from(atob(cells)).map((v) => v.charCodeAt(0));
+        let board: Ref<Board> = null;
+        if (playerNb == game.playerNb) {
+          board = game.board
+        } else {
+          board = game.enemyBoards[playerNb]
+        }
+
+        for (let cell of cellsNb) {
+          board.value.hits[cell] = AttackResultEnum.SUNK
+        }
+      } catch (e) {
+        console.error(e.message);
+      }
+    }
+
     onMounted(() => {
-      const attackWrap = attackResult(game.socket, handleResult)
+      const attackWrap = attackResult(game.socket, handleResult, handleSunk)
       gameOver(game.socket, attackWrap)
     })
 

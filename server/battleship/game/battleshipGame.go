@@ -79,3 +79,27 @@ func (bg *BattleshipGame) NextTurn(playerNb uint8) {
 		bg.Turn += 1
 	}
 }
+
+func (bg *BattleshipGame) GetWinner() *Player {
+	if bg.Phase != PLAYING {
+		return nil
+	}
+	var alive []*Player = make([]*Player, 0)
+	for playerNb := range bg.Players {
+		player := bg.GetPlayer(playerNb)
+		if player != nil && player.AliveShips() {
+			alive = append(alive, player)
+		}
+	}
+	if len(alive) == 1 {
+		return alive[0]
+	}
+	return nil
+}
+
+func (bg *BattleshipGame) ResetReady() {
+	for playerNb := range bg.Players {
+		bg.Players[playerNb].Ready = false
+		bg.Players[playerNb].ResetFleet()
+	}
+}

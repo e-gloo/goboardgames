@@ -11,6 +11,7 @@ export class Game {
   playerNb: number;
   phase = ref<GamePhase>(null);
   yourTurn = ref<boolean>(false);
+  playerTurn = ref<number>(0);
   generatedCode = ref<string>(null);
   board = ref<MyBoard>(null);
   enemyBoards: Record<number, Ref<EnemyBoard>> = {};
@@ -55,6 +56,7 @@ export class Game {
     });
     this.socket.on('PlayersTurn', (playerNb: number) => {
       this.yourTurn.value = this.playerNb === playerNb;
+      this.playerTurn.value = playerNb;
     })
   }
 

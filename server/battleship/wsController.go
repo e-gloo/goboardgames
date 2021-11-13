@@ -74,8 +74,6 @@ func OnError(s socketio.Conn, e error) {
 func RandomizeFleet(s socketio.Conn) string {
 	ctx := s.Context().(*SocketContext)
 
-	fmt.Println("Got new fleet request")
-
 	g, ok := TempMap[ctx.RoomCode]
 	if !ok {
 		return "randomizeFleetError"
@@ -107,11 +105,16 @@ func Ready(s socketio.Conn) string {
 
 	// check si tout le monde est prêt
 	if g.CheckAllPlayersReady() {
-		whosTurn := uint8(utils.RandInt(1, len(g.Players)+1))
-		g.Phase = game.PLAYING
-		g.Turn = whosTurn
-		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "gamePhaseUpdated", g.Phase)
-		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayersTurn", whosTurn)
+		if g.Phase == game.PREPARATION {
+			whosTurn := uint8(utils.RandInt(1, len(g.Players)+1))
+			g.Phase = game.PLAYING
+			g.Turn = whosTurn
+			srv.BroadcastToRoom(Namespace, ctx.RoomCode, "gamePhaseUpdated", g.Phase)
+			srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayersTurn", whosTurn)
+		} else if g.Phase == game.OVER {
+			g.Phase = game.PREPARATION
+			srv.BroadcastToRoom(Namespace, ctx.RoomCode, "gamePhaseUpdated", g.Phase)
+		}
 	}
 
 	srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayerReady", ctx.PlayerNb)
@@ -137,16 +140,24 @@ func Attack(s socketio.Conn, cell uint8, playerNb uint8) string {
 	if ship == nil {
 		result = MISS
 	} else if ship.RemainingAlive > 0 {
-		fmt.Println(ship.RemainingAlive)
 		result = HIT
 	} else {
-		fmt.Println(ship.RemainingAlive)
 		result = SUNK
 	}
 
 	srv.BroadcastToRoom(Namespace, ctx.RoomCode, "AttackResult", &AttackResult{Position: cell, Result: result, PlayerNb: playerNb})
+	if result == SUNK {
+		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "BoatSunk", ship.Cells, playerNb)
+	}
 
-	if result != HIT {
+	if result == SUNK {
+		winner := g.GetWinner()
+		if winner != nil {
+			g.Phase = game.OVER
+			srv.BroadcastToRoom(Namespace, ctx.RoomCode, "gamePhaseUpdated", g.Phase, winner.Number)
+			g.ResetReady()
+		}
+	} else if result != HIT {
 		g.NextTurn(ctx.PlayerNb)
 		srv.BroadcastToRoom(Namespace, ctx.RoomCode, "PlayersTurn", g.Turn)
 	}
